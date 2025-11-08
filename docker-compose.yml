@@ -6,6 +6,8 @@ services:
     container_name: banking-backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
