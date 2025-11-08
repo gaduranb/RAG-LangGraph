@@ -47,7 +47,8 @@ async def chat(request: ChatRequest):
         "citations": None,
         "tool_calls": [],
         "is_out_of_scope": False,
-        "needs_holidays": False
+        "needs_holidays": False,
+        "retrieved_docs": None
     }
 
     # Run the agent graph

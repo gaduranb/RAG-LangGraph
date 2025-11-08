@@ -9,9 +9,15 @@ langgraph==0.2.60
 langchain==0.3.14
 langchain-openai==0.2.14
 langchain-core>=0.3.29
+langchain-community==0.3.14
 
 # Environment variables
 python-dotenv==1.0.1
 
 # HTTP requests (for holidays API)
 httpx==0.28.1
+
+# RAG - Vector Database & PDF Processing
+langchain-chroma==0.1.4
+chromadb==0.5.23
+pypdf==5.1.0

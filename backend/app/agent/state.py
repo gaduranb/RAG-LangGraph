@@ -11,3 +11,4 @@ class AgentState(TypedDict):
     tool_calls: Optional[List[str]]
     is_out_of_scope: bool
     needs_holidays: bool
+    retrieved_docs: Optional[str]  # RAG: Documentos recuperados formateados

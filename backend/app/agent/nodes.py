@@ -3,6 +3,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.state import AgentState
 from app.agent.prompts import SYSTEM_PROMPT, ROUTER_PROMPT
 from app.tools.holidays import is_federal_holiday
+from app.rag.retriever import retrieve_documents, format_retrieved_docs
 from app.config import get_settings
 import json
 
@@ -46,12 +47,15 @@ async def router_node(state: AgentState) -> AgentState:
     if not is_login_security and not needs_holidays:
         is_login_security = True
 
+    # In-scope if either login/security OR holidays
+    is_in_scope = is_login_security or needs_holidays
+
     print(f"[Router] Question: {question}")
-    print(f"[Router] is_login_security: {is_login_security}, needs_holidays: {needs_holidays}")
+    print(f"[Router] is_login_security: {is_login_security}, needs_holidays: {needs_holidays}, is_in_scope: {is_in_scope}")
 
     return {
         **state,
-        "is_out_of_scope": not is_login_security,
+        "is_out_of_scope": not is_in_scope,
         "needs_holidays": needs_holidays
     }
 
@@ -81,18 +85,71 @@ async def holidays_node(state: AgentState) -> AgentState:
 
     return state
 
+async def retriever_node(state: AgentState) -> AgentState:
+    """
+    Retrieves relevant documents from the vector database.
+    """
+    question = state["question"]
+
+    try:
+        # Retrieve top 3 most relevant documents
+        docs = retrieve_documents(question, k=3)
+
+        # Format documents
+        formatted_docs = format_retrieved_docs(docs)
+
+        # Extract citations from documents
+        citations = []
+        seen_sources = set()
+        for doc in docs:
+            source = doc.metadata.get("source", "Unknown")
+            page = doc.metadata.get("page", 0)
+
+            if source not in seen_sources:
+                citations.append({
+                    "title": f"{source} (Page {page + 1})",
+                    "url": "#"
+                })
+                seen_sources.add(source)
+
+        print(f"[RAG] Retrieved {len(docs)} documents")
+        print(f"[RAG] Citations: {citations}")
+
+        return {
+            **state,
+            "retrieved_docs": formatted_docs,
+            "citations": citations
+        }
+
+    except FileNotFoundError as e:
+        print(f"[RAG] Warning: {e}")
+        return {
+            **state,
+            "retrieved_docs": None,
+            "citations": [{"title": "Banking Security Guide", "url": "#"}]
+        }
+
 async def llm_answer_node(state: AgentState) -> AgentState:
     """
-    Generates the final answer using the LLM.
-    The LLM will provide warm, helpful responses about login/security topics.
+    Generates the final answer using the LLM with RAG context.
+    The LLM will provide warm, helpful responses based on retrieved documents.
     """
     question = state["question"]
 
     # Build messages for LLM
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=question)
-    ]
+    messages = [SystemMessage(content=SYSTEM_PROMPT)]
+
+    # Add RAG context if available
+    if state.get("retrieved_docs"):
+        rag_context = (
+            f"Use the following documents from our knowledge base to answer the question. "
+            f"Cite specific information when relevant:\n\n"
+            f"{state['retrieved_docs']}\n\n"
+            f"Question: {question}"
+        )
+        messages.append(HumanMessage(content=rag_context))
+    else:
+        messages.append(HumanMessage(content=question))
 
     # Add holiday context if available
     if state.get("needs_holidays") and state.get("messages"):
@@ -105,8 +162,8 @@ async def llm_answer_node(state: AgentState) -> AgentState:
     response = await llm.ainvoke(messages)
     answer = response.content
 
-    # Generate citations (will be replaced by RAG later)
-    citations = [{"title": "Banking Security Guide", "url": "#"}]
+    # Use citations from retriever if available, otherwise use default
+    citations = state.get("citations", [{"title": "Banking Security Guide", "url": "#"}])
 
     return {
         **state,
@@ -125,7 +182,5 @@ def should_continue(state: AgentState) -> str:
     if state.get("is_out_of_scope"):
         return "out_of_scope"
 
-    if state.get("needs_holidays"):
-        return "holidays"
-
-    return "llm_answer"
+    # All in-scope questions go through RAG retriever
+    return "retriever"
