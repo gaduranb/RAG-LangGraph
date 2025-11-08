@@ -52,6 +52,10 @@ npm install --legacy-peer-deps
 npm run dev
 ```
 
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system architecture, diagrams, and design decisions.
+
 ## Project Structure
 
 ```
@@ -239,6 +243,80 @@ The agent is trained to answer login and security questions based on the PDF kno
 - Source citations (e.g., "Security Training.pdf (Page 3)")
 - Response time in milliseconds
 - Tool calls made (e.g., federal holidays API)
+
+## Testing
+
+### Run Automated Tests
+
+```bash
+# Install test dependencies (if running locally)
+cd backend
+pip install pytest pytest-asyncio
+
+# Run all tests
+docker-compose exec backend pytest
+
+# Run specific test file
+docker-compose exec backend pytest tests/test_api.py
+
+# Run with verbose output
+docker-compose exec backend pytest -v
+
+# Run with coverage
+docker-compose exec backend pytest --cov=app tests/
+```
+
+### Test Structure
+
+```
+backend/tests/
+├── conftest.py       # Shared fixtures
+├── test_api.py       # API endpoint tests
+├── test_rag.py       # RAG component tests
+└── test_agent.py     # LangGraph agent tests
+```
+
+## Evaluation
+
+### Run Evaluation Script
+
+The evaluation script tests the agent with 10 sample prompts from `instructions.md`:
+
+```bash
+# From host machine
+cd backend
+python eval.py
+
+# From Docker container
+docker-compose exec backend python eval.py
+```
+
+### Evaluation Metrics
+
+The script measures:
+- **Latency**: p50, p95, p99, mean, min, max
+- **SLA Compliance**: p95 ≤ 5000ms requirement
+- **Quality**: Citations per query, tool calls, answer length
+- **Coverage**: All 10 sample prompts tested
+
+### Sample Output
+
+```
+⏱️  Latency Statistics:
+   • p50: 4200ms
+   • p95: 4800ms (SLA: ≤5000ms)
+   • p99: 5100ms
+   • Mean: 4300ms
+
+✅ p95 latency PASSES 5s SLA requirement
+
+📚 Quality Metrics:
+   • Total queries: 10
+   • Total citations: 10
+   • Avg citations/query: 1.0
+   • Total tool calls: 1
+   • Avg answer length: 320 chars
+```
 
 ## Troubleshooting
 

@@ -52,3 +52,7 @@ logs/
 
 # Node modules (if frontend has them)
 node_modules/
+
+# RAG - Vector Database (large files, regenerate with ingestion)
+backend/data/vectorstore/
+**/vectorstore/
