@@ -1,0 +1,17 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+python-multipart==0.0.18
+
+# LangChain & LangGraph
+langgraph==0.2.60
+langchain==0.3.14
+langchain-openai==0.2.14
+langchain-core>=0.3.29
+
+# Environment variables
+python-dotenv==1.0.1
+
+# HTTP requests (for holidays API)
+httpx==0.28.1
